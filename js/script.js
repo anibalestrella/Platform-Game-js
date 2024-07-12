@@ -1,5 +1,5 @@
-// Module aliases
-const { Engine, Render, Runner, Bodies, Composite, World, Body, Events } = Matter;
+// Module aliases including Query from Matter.js
+const { Engine, Render, Runner, Bodies, Composite, World, Body, Events, Query } = Matter;
 
 // Create an engine
 const engine = Engine.create();
@@ -19,12 +19,14 @@ const render = Render.create({
 });
 
 Render.run(render);
+
+// Create a runner
 const runner = Runner.create();
 Runner.run(runner, engine);
 
 // Load player sprite
 const playerSprite = new Image();
-playerSprite.src = 'assets/images/player.png';
+playerSprite.src = 'assets/images/spt-character-01.png';
 
 const playerFrames = {
     idle: { x: 0, y: 0, width: 50, height: 50 },
@@ -43,6 +45,9 @@ const player = Bodies.rectangle(50, 550, 50, 50, {
     inertia: Infinity, // Prevent rotation
     render: {
         sprite: playerFrames.idle
+    },
+    collisionFilter: {
+        category: 0x0002 // Unique category number for the player
     }
 });
 World.add(world, player);
@@ -93,17 +98,44 @@ World.add(world, platforms);
 document.addEventListener('keydown', keyDown);
 document.addEventListener('keyup', keyUp);
 
+// Function to check if the player is grounded
+function isPlayerGrounded() {
+    const collisionResults = Query.collides(player, world.bodies);
+    return collisionResults.some(collision => {
+        const { bodyA, bodyB } = collision;
+        return (bodyA === player || bodyB === player) &&
+            (bodyA.position.y >= player.position.y || bodyB.position.y >= player.position.y);
+    });
+}
+
+// Updated keyDown function with ground check
 function keyDown(event) {
+    // Prevent default behavior for keys that may cause page scrolling
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+    }
+
     // Apply forces to the player based on key press
-    if (event.key === 'ArrowRight' || event.key === 'Right') {
-        Body.setVelocity(player, { x: 5, y: player.velocity.y });
-        player.render.sprite = playerFrames.walk[currentFrameIndex];
-    } else if (event.key === 'ArrowLeft' || event.key === 'Left') {
-        Body.setVelocity(player, { x: -5, y: player.velocity.y });
-        player.render.sprite = playerFrames.walk[currentFrameIndex];
-    } else if ((event.key === 'ArrowUp' || event.key === 'Up') && player.position.y >= 550) {
-        Body.setVelocity(player, { x: player.velocity.x, y: -10 });
-        player.render.sprite = playerFrames.jump;
+    switch (event.key) {
+        case 'ArrowRight':
+        case 'Right':
+            Body.setVelocity(player, { x: 5, y: player.velocity.y });
+            player.render.sprite = playerFrames.walk[currentFrameIndex];
+            break;
+        case 'ArrowLeft':
+        case 'Left':
+            Body.setVelocity(player, { x: -5, y: player.velocity.y });
+            player.render.sprite = playerFrames.walk[currentFrameIndex];
+            break;
+        case 'ArrowUp':
+        case 'Up':
+            if (isPlayerGrounded()) {
+                Body.setVelocity(player, { x: player.velocity.x, y: -15 }); // Adjust jump force if needed
+                player.render.sprite = playerFrames.jump;
+            }
+            break;
+        default:
+            break;
     }
 }
 
@@ -115,7 +147,7 @@ function keyUp(event) {
     }
 }
 
-// Check if player reached the end of the level
+// Function to check if player reached the end of the level
 Events.on(engine, 'beforeUpdate', () => {
     if (player.position.x > 800) {
         nextLevel();
@@ -145,6 +177,9 @@ function nextLevel() {
 function gameLoop() {
     // Request next frame
     requestAnimationFrame(gameLoop);
+
+    // Update the engine
+    Engine.update(engine, 1000 / 60); // Update at 60 FPS
 }
 
 // Start the game loop

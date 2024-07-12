@@ -1,0 +1,5 @@
+# Ignore Visual Studio Code workspace file
+Platform-Game-js.code-workspace
+
+# Ignore macOS system file
+.DS_Store
